@@ -1,0 +1,54 @@
+@import "tailwindcss";
+
+@theme {
+  --color-ink: #0b0f17;
+  --color-panel: #111827;
+  --color-panel-2: #1a2332;
+  --color-line: #243044;
+  --color-accent: #fbd24d;
+  --color-accent-2: #4dc8fb;
+  --color-pos: #34d399;
+  --color-neg: #f87171;
+  --font-sans: "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-ink text-slate-200 antialiased;
+  background-image:
+    radial-gradient(1200px 500px at 80% -10%, rgba(251, 210, 77, 0.07), transparent),
+    radial-gradient(900px 400px at 10% -10%, rgba(77, 200, 251, 0.06), transparent);
+}
+
+.panel {
+  @apply bg-panel border border-line rounded-2xl;
+}
+
+.btn {
+  @apply px-4 py-2 rounded-xl font-semibold text-sm transition-colors cursor-pointer
+    disabled:opacity-40 disabled:cursor-not-allowed;
+}
+
+.btn-primary {
+  @apply px-4 py-2 rounded-xl font-semibold text-sm transition-colors cursor-pointer
+    disabled:opacity-40 disabled:cursor-not-allowed bg-accent text-ink hover:bg-amber-300;
+}
+
+.btn-ghost {
+  @apply px-4 py-2 rounded-xl font-semibold text-sm transition-colors cursor-pointer
+    disabled:opacity-40 disabled:cursor-not-allowed bg-panel-2 text-slate-200 border border-line
+    hover:border-slate-500;
+}
+
+.input {
+  @apply w-full bg-panel-2 border border-line rounded-xl px-3 py-2 text-sm font-mono
+    focus:outline-none focus:border-accent placeholder:text-slate-500;
+}
+
+.tag {
+  @apply text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full;
+}
