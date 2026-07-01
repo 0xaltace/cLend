@@ -1,7 +1,7 @@
 import { fallback, http } from "viem";
 import { createConfig } from "wagmi";
 import { sepolia } from "wagmi/chains";
-import { injected } from "wagmi/connectors";
+import { coinbaseWallet, injected, walletConnect } from "wagmi/connectors";
 
 // Public Sepolia RPCs with automatic failover. Event-driven features use
 // `safeGetLogs`, which chunks queries when a provider caps eth_getLogs ranges,
@@ -20,9 +20,33 @@ const transports = [
   http("https://rpc.sepolia.org"),
 ];
 
+// Injected (MetaMask/Rabby/…) + Coinbase are always available. WalletConnect is
+// added only when a project id is present, so a missing key can never break the
+// app — the connect modal simply won't show the WalletConnect option.
+const wcProjectId = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID as string | undefined;
+
+const connectors = [
+  injected(),
+  coinbaseWallet({ appName: "cLend" }),
+  ...(wcProjectId
+    ? [
+        walletConnect({
+          projectId: wcProjectId,
+          showQrModal: true,
+          metadata: {
+            name: "cLend",
+            description: "Fully encrypted lending on Zama FHEVM",
+            url: "https://c-lend.vercel.app",
+            icons: ["https://c-lend.vercel.app/logo.svg"],
+          },
+        }),
+      ]
+    : []),
+];
+
 export const wagmiConfig = createConfig({
   chains: [sepolia],
-  connectors: [injected()],
+  connectors,
   transports: {
     [sepolia.id]: fallback(override ? [http(override), ...transports] : transports, {
       rank: { interval: 60_000, sampleCount: 3 },

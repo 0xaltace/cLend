@@ -10,7 +10,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@coinbase/wallet-sdk": "^4.3.7",
     "@tanstack/react-query": "^5.101.0",
+    "@walletconnect/ethereum-provider": "^2.23.10",
     "@zama-fhe/relayer-sdk": "^0.4.3",
     "framer-motion": "^12.40.0",
     "react": "^19.2.6",

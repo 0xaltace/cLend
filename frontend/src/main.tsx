@@ -4,6 +4,7 @@ import { createRoot } from "react-dom/client";
 import { WagmiProvider } from "wagmi";
 
 import App from "./App";
+import { WalletModalProvider } from "./components/WalletModal";
 import "./index.css";
 import { wagmiConfig } from "./lib/wagmi";
 
@@ -17,7 +18,9 @@ createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <WagmiProvider config={wagmiConfig}>
       <QueryClientProvider client={queryClient}>
-        <App />
+        <WalletModalProvider>
+          <App />
+        </WalletModalProvider>
       </QueryClientProvider>
     </WagmiProvider>
   </StrictMode>,

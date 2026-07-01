@@ -1,14 +1,15 @@
 import { Link, NavLink } from "react-router-dom";
-import { useAccount, useConnect, useDisconnect, useSwitchChain } from "wagmi";
+import { useAccount, useDisconnect, useSwitchChain } from "wagmi";
 import { sepolia } from "wagmi/chains";
 
 import { useDecryption } from "../context/DecryptionContext";
 import { shortAddr } from "../lib/format";
 import { Logo } from "./Logo";
+import { useWalletModal } from "./WalletModal";
 
 export function Nav() {
   const { address, chainId, isConnected } = useAccount();
-  const { connect, connectors, isPending } = useConnect();
+  const { open } = useWalletModal();
   const { disconnect } = useDisconnect();
   const { switchChain } = useSwitchChain();
   const { decrypted, publicView, setPublicView } = useDecryption();
@@ -66,8 +67,8 @@ export function Nav() {
               {shortAddr(address!)}
             </button>
           ) : (
-            <button className="btn-primary text-xs" disabled={isPending} onClick={() => connect({ connector: connectors[0] })}>
-              {isPending ? "Connecting…" : "Connect"}
+            <button className="btn-primary text-xs" onClick={open}>
+              Connect
             </button>
           )}
         </div>
