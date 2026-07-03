@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useAccount } from "wagmi";
 
+import { IconLock, IconUnlock } from "./Icons";
 import { useDecryption } from "../context/DecryptionContext";
 import type { MarketInfo } from "../lib/config";
 import { computePosition, projectPosition, LLTV, type PreviewAction } from "../lib/positionMath";
@@ -44,7 +45,14 @@ export function MyPosition({ market, preview }: { market: MarketInfo; preview: P
   const hidden = !decrypted || publicView;
 
   if (!address) {
-    return <div className="panel p-5 text-sm text-slate-400">Connect a wallet to see your encrypted position.</div>;
+    return (
+      <div className="panel p-6 text-sm text-t2 flex items-center gap-3">
+        <span className="w-9 h-9 rounded-xl well grid place-items-center text-accent">
+          <IconLock size={16} />
+        </span>
+        Connect a wallet to see your encrypted position.
+      </div>
+    );
   }
 
   const fmtAmt = (v: number, dp = 4) => v.toLocaleString(undefined, { maximumFractionDigits: dp });
@@ -59,29 +67,27 @@ export function MyPosition({ market, preview }: { market: MarketInfo; preview: P
   }
 
   return (
-    <div className="panel p-5">
-      <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
+    <div className="panel p-6">
+      <div className="flex items-center justify-between mb-5 gap-3 flex-wrap">
         <div>
           <h3 className="font-bold">Your position</h3>
-          <p className="text-[11px] text-slate-400">
+          <p className="text-[11px] text-t2">
             {hidden
-              ? "This is what the blockchain stores: ciphertext. Decrypt locally to read it."
+              ? "The chain stores only ciphertext. Decrypt locally to read it."
               : typingView
-                ? "Live preview — meters show where this action would put you."
+                ? "Live preview of this action."
                 : stressedView
                   ? `Stress test — ${market.collateral.symbol} at ${stressPct > 0 ? "+" : ""}${stressPct}%.`
-                  : "Decrypted locally with your key — only you can see these numbers."}
+                  : "Decrypted locally — only you can see this."}
           </p>
         </div>
         {!decrypted && (
           <div className="text-right">
-            <button className="btn-primary" onClick={decryptAll} disabled={busy}>
-              {busy ? "Decrypting…" : "🔓 Decrypt position"}
+            <button className="btn-primary inline-flex items-center gap-2" onClick={decryptAll} disabled={busy}>
+              <IconUnlock size={14} />
+              {busy ? "Decrypting…" : "Decrypt position"}
             </button>
-            <p className="text-[10px] text-slate-500 mt-1 max-w-56">
-              Asks for two signatures: one covers token balances, one market positions (the SDK allows
-              10 contracts per signature). Both cached for 24h.
-            </p>
+            <p className="text-[10px] text-t3 mt-1">Two wallet signatures, cached 24h.</p>
           </div>
         )}
       </div>
@@ -98,8 +104,8 @@ export function MyPosition({ market, preview }: { market: MarketInfo; preview: P
 
         <div className="space-y-5">
           <div>
-            <div className="text-[10px] font-bold tracking-widest text-slate-500 mb-1.5">
-              BORROW SIDE — Your loan
+            <div className="label mb-2">
+              Borrow side — Your loan
             </div>
             <div className="grid grid-cols-2 gap-2">
               <Stat
@@ -121,9 +127,9 @@ export function MyPosition({ market, preview }: { market: MarketInfo; preview: P
           </div>
 
           {hidden ? (
-            <div className="bg-panel-2 border border-line rounded-xl p-3 text-center">
+            <div className="well rounded-xl p-4 text-center">
               <CipherValue value="" hidden chars={48} className="text-sm" />
-              <div className="text-[10px] text-slate-500 mt-1">
+              <div className="text-[10px] text-t3 mt-1.5">
                 Risk meters render after local decryption — the chain cannot compute this view
               </div>
             </div>
@@ -144,19 +150,19 @@ export function MyPosition({ market, preview }: { market: MarketInfo; preview: P
                 />
 
                 {/* stress test: drag the collateral price, watch everything react */}
-                <div className="bg-panel-2/60 border border-line rounded-xl p-3">
+                <div className="well rounded-xl p-3.5">
                   <div className="flex items-center justify-between mb-2 text-[11px]">
-                    <span className="font-bold text-slate-300">
+                    <span className="font-bold text-t2">
                       Stress test — what if {market.collateral.symbol} moves?
                     </span>
-                    <span className={`font-mono font-bold ${stressPct < 0 ? "text-neg" : stressPct > 0 ? "text-pos" : "text-slate-400"}`}>
+                    <span className={`font-mono font-bold ${stressPct < 0 ? "text-neg" : stressPct > 0 ? "text-pos" : "text-t2"}`}>
                       {stressPct > 0 ? "+" : ""}
                       {stressPct}%
                       {stressedView && (
-                        <span className="text-slate-400 font-normal">
+                        <span className="text-t2 font-normal">
                           {" "}
                           → HF{" "}
-                          <span className={stressedView.healthFactor !== null && stressedView.healthFactor < 1 ? "text-neg font-bold" : "text-slate-200"}>
+                          <span className={stressedView.healthFactor !== null && stressedView.healthFactor < 1 ? "text-neg font-bold" : "text-t1"}>
                             {stressedView.healthFactor === null ? "∞" : stressedView.healthFactor.toFixed(2)}
                           </span>
                         </span>
@@ -170,15 +176,15 @@ export function MyPosition({ market, preview }: { market: MarketInfo; preview: P
                     step={1}
                     value={stressPct}
                     onChange={(e) => setStressPct(Number(e.target.value))}
-                    className="w-full accent-amber-400"
+                    className="slider"
                   />
-                  <div className="flex gap-1.5 mt-1.5">
+                  <div className="flex flex-wrap gap-1.5 mt-1.5">
                     {[-10, -25, -50, 0].map((p) => (
                       <button
                         key={p}
                         onClick={() => setStressPct(p)}
                         className={`text-[10px] px-2 py-0.5 rounded-md border transition-colors ${
-                          stressPct === p ? "border-accent text-accent" : "border-line text-slate-400 hover:border-slate-500"
+                          stressPct === p ? "border-accent text-accent" : "border-edge text-t2 hover:border-t3"
                         }`}
                       >
                         {p === 0 ? "Reset" : `${p}%`}
@@ -205,15 +211,15 @@ function Stat({ label, value, next, sub, hidden, accent }: {
   hidden: boolean;
   accent?: "pos" | "neg";
 }) {
-  const color = accent === "pos" ? "text-pos" : accent === "neg" ? "text-neg" : "text-slate-100";
+  const color = accent === "pos" ? "text-pos" : accent === "neg" ? "text-neg" : "text-t1";
   return (
-    <div className={`bg-panel-2 rounded-xl p-3 transition-all ${next && !hidden ? "ring-1 ring-accent-2/50" : ""}`}>
-      <div className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">{label}</div>
-      <div className={`font-mono font-bold text-lg ${hidden ? "" : color}`}>
+    <div className={`well rounded-xl p-3.5 transition-all ${next && !hidden ? "ring-1 ring-accent-2/50 shadow-[0_0_20px_-8px_rgba(77,200,251,0.4)]" : ""}`}>
+      <div className="label mb-1">{label}</div>
+      <div className={`font-mono font-bold text-lg tabular ${hidden ? "" : color}`}>
         <CipherValue value={value} hidden={hidden} chars={8} />
         {next && !hidden && <span className="text-accent-2 text-sm"> → {next}</span>}
       </div>
-      <div className="text-[11px] text-slate-400 font-mono">{hidden ? "•••" : sub}</div>
+      <div className="text-[11px] text-t2 font-mono">{hidden ? "•••" : sub}</div>
     </div>
   );
 }

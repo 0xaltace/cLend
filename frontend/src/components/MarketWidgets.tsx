@@ -27,13 +27,14 @@ function useNowSec() {
 export function TvlBanner() {
   const { totalUsd, suppliedUsd, borrowsUsd, collateralUsd } = useGlobalTvl();
   return (
-    <div className="panel p-4 flex flex-wrap items-center justify-between gap-4">
-      <div>
-        <div className="text-[10px] uppercase tracking-wider text-slate-400">Total value locked</div>
-        <div className="font-mono font-black text-2xl">{totalUsd > 0 ? usd(totalUsd) : "—"}</div>
-        <div className="text-[10px] text-slate-500">Supplied + collateral, as of each market's last sync</div>
+    <div className="panel relative overflow-hidden p-5 flex flex-wrap items-center justify-between gap-5">
+      <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(600px_140px_at_12%_0%,rgba(247,201,72,0.07),transparent)]" />
+      <div className="relative">
+        <div className="label">Total value locked</div>
+        <div className="font-mono font-bold text-3xl tabular mt-0.5">{totalUsd > 0 ? usd(totalUsd) : "—"}</div>
+        <div className="text-[10px] text-t3 mt-0.5">Supplied + collateral, as of each market's last sync</div>
       </div>
-      <div className="flex gap-5 text-sm font-mono">
+      <div className="relative flex flex-wrap gap-x-6 gap-y-2 text-sm font-mono">
         <Metric label="Supplied" value={usd(suppliedUsd)} color="text-pos" />
         <Metric label="Outstanding borrows" value={usd(borrowsUsd)} color="text-accent" />
         <Metric label="Collateral locked" value={usd(collateralUsd)} color="text-accent-2" />
@@ -45,8 +46,8 @@ export function TvlBanner() {
 function Metric({ label, value, color }: { label: string; value: string; color: string }) {
   return (
     <div className="text-right">
-      <div className="text-[10px] uppercase tracking-wider text-slate-500">{label}</div>
-      <div className={`font-bold ${color}`}>{value}</div>
+      <div className="label">{label}</div>
+      <div className={`font-bold tabular mt-0.5 ${color}`}>{value}</div>
     </div>
   );
 }
@@ -56,8 +57,8 @@ export function MarketTvl({ snap }: { snap: MarketSnapshot | undefined }) {
   const t = snap ? tvlOf(snap) : null;
   if (!t) return null;
   return (
-    <div className="flex gap-4 text-[11px] font-mono text-slate-400">
-      <span>TVL <span className="text-slate-200">{usd(t.totalUsd)}</span></span>
+    <div className="flex gap-4 text-[11px] font-mono text-t2">
+      <span>TVL <span className="text-t1">{usd(t.totalUsd)}</span></span>
       <span>Supplied <span className="text-pos">{usd(t.suppliedUsd)}</span></span>
       <span>Borrows <span className="text-accent">{usd(t.borrowsUsd)}</span></span>
       <span>Collateral <span className="text-accent-2">{usd(t.collateralUsd)}</span></span>
@@ -73,12 +74,12 @@ export function SyncBadge({ market, snap }: { market: MarketInfo; snap: MarketSn
 
   return (
     <div className="flex items-center gap-2 text-[11px]">
-      <span className={st.never ? "text-amber-400" : st.isStale ? "text-amber-400" : "text-slate-500"}>
+      <span className={st.never ? "text-accent" : st.isStale ? "text-accent" : "text-t3"}>
         {st.never ? "Never synced" : `Synced ${ageLabel(st.ageSeconds)}`}
         {st.isStale && !st.never && " · stale"}
       </span>
       <button
-        className="text-accent-2 hover:text-accent font-semibold disabled:opacity-50"
+        className="text-accent-2 hover:text-accent font-semibold disabled:opacity-50 rounded-md px-2 py-0.5 border border-accent-2/20 hover:border-accent/40 transition-colors"
         disabled={busy}
         onClick={() => sync().catch(() => {})}
       >
@@ -113,7 +114,7 @@ export function LowAnonymityBadge({ market }: { market: MarketInfo }) {
   if (count === undefined || count >= 3) return null;
   return (
     <span
-      className="tag bg-amber-400/10 text-amber-400 border border-amber-400/30"
+      className="tag bg-accent/10 text-accent border border-accent/30"
       title="With few known participants, disclosed aggregates can approximate an individual position. Individual positions remain encrypted."
     >
       Few known participants

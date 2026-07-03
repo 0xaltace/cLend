@@ -3,6 +3,7 @@ import { useState } from "react";
 import { parseAbiItem } from "viem";
 import { usePublicClient } from "wagmi";
 
+import { IconShield } from "../components/Icons";
 import { Keeper } from "../components/Keeper";
 import { CipherValue } from "../components/viz/CipherValue";
 import { MARKET_ABI } from "../lib/abis";
@@ -69,37 +70,39 @@ export function LiquidationsPage() {
   });
 
   return (
-    <div className="max-w-5xl mx-auto px-4 pb-16 pt-6 space-y-4">
+    <div className="max-w-6xl mx-auto px-4 pb-16 pt-8 space-y-4">
       <div>
-        <h2 className="text-xl font-black">Liquidations</h2>
-        <p className="text-xs text-slate-400 max-w-2xl mt-1">
+        <h2 className="text-2xl font-bold tracking-tight">Liquidations</h2>
+        <p className="text-xs text-t2 max-w-2xl mt-1">
           Health checks reveal a single yes/no bit per position — never the amounts.
         </p>
       </div>
 
       {/* the one-bit mechanism, as a product surface */}
-      <div className="grid md:grid-cols-3 gap-2 text-xs">
+      <div className="grid md:grid-cols-3 gap-3 text-xs">
         {[
           {
             n: "01",
             t: "Anyone requests a check",
-            d: "Pick any borrower. The contract compares enc(collateral) × price × 80% against enc(debt) × index — entirely under FHE. Nobody learns the numbers, including the contract.",
+            d: "The contract compares encrypted collateral vs debt entirely under FHE. Nobody learns the numbers.",
           },
           {
             n: "02",
-            t: "The KMS answers with ONE bit",
-            d: "Zama's key network decrypts only the comparison result: liquidatable, yes or no. A cryptographic proof lands on-chain. Position sizes stay sealed.",
+            t: "The KMS answers with one bit",
+            d: "Only the verdict is decrypted: liquidatable, yes or no, with a proof on-chain.",
           },
           {
             n: "03",
-            t: "A public 10-minute window opens",
-            d: "A confirmed YES flags the address publicly below. Anyone can liquidate within the window — repay up to 50% of the debt, earn 5% on the seized collateral. Amounts stay encrypted even from the liquidator.",
+            t: "A 10-minute window opens",
+            d: "A confirmed yes flags the address below. Anyone can repay up to 50% and earn a 5% bonus — amounts stay encrypted.",
           },
         ].map((s) => (
-          <div key={s.n} className="panel p-4 relative">
-            <div className="font-mono text-accent-2/40 font-black text-2xl absolute right-3 top-2">{s.n}</div>
-            <div className="font-bold mb-1.5 mt-1">{s.t}</div>
-            <p className="text-slate-400 leading-relaxed">{s.d}</p>
+          <div key={s.n} className="panel panel-hover p-5 relative overflow-hidden">
+            <div className="font-mono text-transparent bg-clip-text bg-gradient-to-b from-accent-2/50 to-transparent font-bold text-4xl absolute right-4 top-2 select-none">
+              {s.n}
+            </div>
+            <div className="font-bold mb-1.5 mt-1 pr-12">{s.t}</div>
+            <p className="text-t2 leading-relaxed">{s.d}</p>
           </div>
         ))}
       </div>
@@ -107,13 +110,12 @@ export function LiquidationsPage() {
       <WorkedExample />
 
       {/* live flag board */}
-      <div className="panel p-4">
-        <div className="flex items-center justify-between mb-3">
+      <div className="panel p-5">
+        <div className="flex items-center justify-between mb-4">
           <div>
-            <div className="font-bold text-sm">Flagged positions — liquidatable now</div>
-            <div className="text-[11px] text-slate-400">
-              Confirmed verdicts with their 10-minute windows still open. Anyone can see this list and
-              liquidate — the position sizes stay encrypted.
+            <div className="font-bold text-sm">Flagged positions</div>
+            <div className="text-[11px] text-t2 mt-0.5">
+              Confirmed verdicts with open windows. Sizes stay encrypted.
             </div>
           </div>
           <span className="tag bg-neg/10 text-neg border border-neg/30">{flagged?.length ?? 0} live</span>
@@ -126,12 +128,13 @@ export function LiquidationsPage() {
             ))}
           </div>
         ) : (
-          <div className="bg-panel-2/60 rounded-xl p-5 text-center">
-            <div className="text-2xl mb-1.5">🛡️</div>
-            <div className="text-sm font-bold text-slate-300">No flagged positions right now</div>
-            <p className="text-[11px] text-slate-500 mt-1 max-w-md mx-auto">
-              Run a health check below on any borrower address. If the KMS confirms the position is
-              liquidatable, it appears here for ten minutes.
+          <div className="well rounded-xl p-6 text-center">
+            <div className="w-10 h-10 rounded-xl well grid place-items-center mx-auto mb-2 text-pos">
+              <IconShield size={18} />
+            </div>
+            <div className="text-sm font-bold text-t2">No flagged positions right now</div>
+            <p className="text-[11px] text-t3 mt-1 max-w-md mx-auto">
+              Run a health check below — a confirmed verdict appears here for ten minutes.
             </p>
           </div>
         )}
@@ -146,34 +149,34 @@ export function LiquidationsPage() {
         />
       </div>
 
-      <div className="panel p-3 text-[11px] text-slate-500 leading-relaxed">
-        <b className="text-slate-400">Why this design?</b> Any "riskiness hint" shown before a check
-        would leak position information — observers could bisect your balances over time. So cLend is
-        strictly binary: encrypted until a check, public flag only after a confirmed verdict, expiring in
-        10 minutes. Discovery costs a keeper one transaction; the 5% bonus pays for the sweep. Once one
-        keeper finds a 1, everyone can compete on execution — the same dynamics as Aave, without
-        exposing positions.
-      </div>
+      <p className="text-[11px] text-t3 leading-relaxed px-1">
+        <b className="text-t2">Why strictly binary?</b> Any riskiness hint before a check would let
+        observers bisect balances over time — so positions stay encrypted until a confirmed verdict,
+        and flags expire in 10 minutes.
+      </p>
     </div>
   );
 }
 
-/** The blind-bid mechanic, with numbers — so anyone can actually liquidate. */
+/** The blind-bid mechanic, with numbers — collapsed by default to keep the page lean. */
 function WorkedExample() {
   return (
-    <div className="panel p-4">
-      <div className="font-bold text-sm mb-1">How a blind liquidation works — worked example</div>
-      <p className="text-[11px] text-slate-400 mb-3 max-w-2xl">
-        You don't need to know the borrower's numbers. You submit a{" "}
-        <b className="text-slate-300">ceiling bid</b> — the most you're willing to repay — and the
-        contract clamps it against the hidden debt, under encryption.
+    <details className="panel p-4 group">
+      <summary className="cursor-pointer list-none flex items-center justify-between text-sm font-bold select-none">
+        How a blind liquidation works — worked example
+        <span className="text-t3 text-xs font-normal group-open:hidden">Show</span>
+        <span className="text-t3 text-xs font-normal hidden group-open:inline">Hide</span>
+      </summary>
+      <p className="text-[11px] text-t2 my-3 max-w-2xl">
+        You bid the most you're willing to repay; the contract clamps it against the hidden debt, under
+        encryption.
       </p>
 
       <div className="grid md:grid-cols-[auto_1fr] gap-4">
         {/* hidden scenario */}
-        <div className="bg-panel-2 rounded-xl p-3 text-xs font-mono space-y-1 min-w-56">
-          <div className="text-[10px] text-slate-500 font-sans font-bold tracking-wider mb-1.5">
-            THE POSITION (hidden from you)
+        <div className="well rounded-xl p-3.5 text-xs font-mono space-y-1 min-w-56">
+          <div className="label mb-1.5">
+            The position (hidden from you)
           </div>
           <div>
             debt <span className="text-neg font-bold">10,000 cUSDC</span>
@@ -201,14 +204,14 @@ function WorkedExample() {
               bid: "You bid 1,000",
               math: "min(1,000, 5,000) = 1,000 repaid",
               result: "you seize 0.875 cWETH ($1,050)",
-              note: "+$50 profit — small bids always work, just liquidate less",
+              note: "+$50 — small bids always work",
               good: true,
             },
             {
               bid: "You bid 8,000 but only hold 3,000",
-              math: "your token balance can't cover the clamped repay",
-              result: "the transfer moves 0 — you repay nothing, seize nothing",
-              note: "and the flag is consumed. Never bid more than you hold (the desk warns you).",
+              math: "your balance can't cover the clamped repay",
+              result: "the transfer moves 0 and the flag is consumed",
+              note: "never bid more than you hold (the desk warns you)",
               good: false,
             },
           ].map((row) => (
@@ -216,21 +219,19 @@ function WorkedExample() {
               key={row.bid}
               className={`rounded-xl px-3 py-2 border ${row.good ? "bg-pos/5 border-pos/20" : "bg-neg/5 border-neg/25"}`}
             >
-              <span className="font-bold text-slate-200">{row.bid}</span>
-              <span className="text-slate-400"> → {row.math} → </span>
+              <span className="font-bold text-t1">{row.bid}</span>
+              <span className="text-t2"> → {row.math} → </span>
               <span className={row.good ? "text-pos" : "text-neg"}>{row.result}</span>
-              <span className="text-slate-500"> · {row.note}</span>
+              <span className="text-t3"> · {row.note}</span>
             </div>
           ))}
-          <p className="text-[11px] text-slate-500 pt-1">
-            The transaction never reverts for bidding "wrong" — over-bids clamp to the 50% close
-            factor, under-bids execute in full. After any liquidation the position changed, so the flag
-            expires; if it's still unhealthy, the next health check re-flags it. Your repay and seizure
-            amounts are visible only to you — the chain records ciphertext.
+          <p className="text-[11px] text-t3 pt-1">
+            Bids never revert: over-bids clamp to the 50% close factor, under-bids fill in full. Your
+            repay and seizure amounts are visible only to you.
           </p>
         </div>
       </div>
-    </div>
+    </details>
   );
 }
 
@@ -240,19 +241,19 @@ function FlagRow({ flag, onLiquidate }: { flag: FlaggedPosition; onLiquidate: ()
   const ss = String(secondsLeft % 60).padStart(2, "0");
 
   return (
-    <div className="flex items-center gap-3 bg-neg/5 border border-neg/25 rounded-xl px-3 py-2.5">
-      <span className="w-2 h-2 rounded-full bg-neg animate-pulse shrink-0" />
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 bg-neg/[0.06] border border-neg/25 rounded-xl px-3.5 py-2.5">
+      <span className="w-2 h-2 rounded-full bg-neg animate-pulse shrink-0 shadow-[0_0_8px_rgba(255,112,112,0.9)]" />
       <span className="font-mono text-sm">{shortAddr(flag.user)}</span>
-      <span className="text-[11px] text-slate-400">
+      <span className="text-[11px] text-t2">
         {flag.market.collateral.symbol} / {flag.market.debt.symbol}
       </span>
-      <span className="text-[11px] font-mono text-slate-500">
+      <span className="text-[11px] font-mono text-t3">
         Size: <CipherValue value="" hidden chars={7} className="text-[10px]" />
       </span>
-      <span className="ml-auto font-mono text-xs text-neg font-bold">
+      <span className="ml-auto font-mono text-xs text-neg font-bold tabular">
         {mm}:{ss} left
       </span>
-      <a href="#keeper-desk" className="btn bg-neg text-ink text-xs font-bold" onClick={onLiquidate}>
+      <a href="#keeper-desk" className="btn-danger text-xs" onClick={onLiquidate}>
         Liquidate
       </a>
     </div>

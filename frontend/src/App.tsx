@@ -16,9 +16,11 @@ function Shell() {
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
   }, [pathname]);
+  const inApp = pathname !== "/";
   return (
-    <div className="min-h-screen flex flex-col">
-      {pathname !== "/" && <Nav />}
+    // bottom padding clears the fixed mobile tab bar on app routes
+    <div className={`min-h-screen flex flex-col ${inApp ? "pb-16 md:pb-0" : ""}`}>
+      {inApp && <Nav />}
       <div className="flex-1">
         <Outlet />
       </div>

@@ -67,7 +67,7 @@ export function HealthGauge({ hf, projectedHf, size = 170 }: {
         y1={cy - (r - 9) * Math.sin(a)}
         x2={cx + (r - 3) * Math.cos(a)}
         y2={cy - (r - 3) * Math.sin(a)}
-        stroke="#33415c"
+        stroke="var(--viz-tick)"
         strokeWidth={1.5}
       />
     );
@@ -76,15 +76,15 @@ export function HealthGauge({ hf, projectedHf, size = 170 }: {
   const fmt = (v: number | null) => (v === null ? "∞" : v > 99 ? ">99" : v.toFixed(2));
   // Green only at HF >= 2.0; amber 1.0–2.0; red below 1.0.
   const zone = display === null || display >= 2 ? "SAFE" : display >= 1.1 ? "CAUTION" : display >= 1 ? "AT RISK" : "LIQUIDATABLE";
-  const zoneColor = display === null || display >= 2 ? "#34d399" : display >= 1 ? "#fbd24d" : "#f87171";
+  const zoneColor = display === null || display >= 2 ? "var(--pos)" : display >= 1 ? "var(--accent)" : "var(--neg)";
 
   return (
     <div className="flex flex-col items-center">
       <svg width={w} height={h} className="overflow-visible">
         {/* red to 2nd tick (HF<1.0), yellow 2nd–3rd tick (HF 1–2), green the rest (HF 2+) */}
-        {arc(0, RED - 0.015, "#f87171")}
-        {arc(RED + 0.015, YEL - 0.015, "#fbd24d")}
-        {arc(YEL + 0.015, 1, "#34d399")}
+        {arc(0, RED - 0.015, "var(--neg)")}
+        {arc(RED + 0.015, YEL - 0.015, "var(--accent)")}
+        {arc(YEL + 0.015, 1, "var(--pos)")}
         {ticks}
         {/* HF = 1.0 liquidation boundary */}
         {(() => {
@@ -95,7 +95,7 @@ export function HealthGauge({ hf, projectedHf, size = 170 }: {
               y1={cy - (r - 13) * Math.sin(a)}
               x2={cx + (r + 13) * Math.cos(a)}
               y2={cy - (r + 13) * Math.sin(a)}
-              stroke="#f87171"
+              stroke="var(--neg)"
               strokeWidth={2}
               strokeDasharray="3 2"
             />
@@ -109,11 +109,11 @@ export function HealthGauge({ hf, projectedHf, size = 170 }: {
           initial={{ x2: startTip.x, y2: startTip.y }}
           animate={{ x2: tip.x, y2: tip.y }}
           transition={{ type: "spring", stiffness: 48, damping: 11.5, mass: 1 }}
-          stroke="#e2e8f0"
+          stroke="var(--t1)"
           strokeWidth={3.5}
           strokeLinecap="round"
         />
-        <circle cx={cx} cy={cy} r={6} fill="#1a2332" stroke={zoneColor} strokeWidth={2.5} />
+        <circle cx={cx} cy={cy} r={6} fill="var(--card)" stroke={zoneColor} strokeWidth={2.5} />
       </svg>
 
       {/* readout below the dial — label in FRONT of the number */}
@@ -126,7 +126,7 @@ export function HealthGauge({ hf, projectedHf, size = 170 }: {
           {zone} · HEALTH FACTOR
         </div>
         {hasProjection && (
-          <div className="text-[10px] font-mono text-slate-500 mt-0.5">now {fmt(hf)}</div>
+          <div className="text-[10px] font-mono text-t3 mt-0.5">now {fmt(hf)}</div>
         )}
       </div>
     </div>

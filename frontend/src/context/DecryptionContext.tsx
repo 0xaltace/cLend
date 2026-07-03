@@ -27,7 +27,9 @@ interface DecryptionState {
   error: string | null;
   wallet: Record<string, bigint>;
   positions: MarketPosition[];
-  decryptAll: () => Promise<void>;
+  decryptAll: () => Promise<boolean>;
+  /** Post-transaction refresh: retries decryptAll while the relayer catches up to the new block. */
+  refreshAfterTx: () => Promise<void>;
   reset: () => void;
 }
 
@@ -45,8 +47,8 @@ export function DecryptionProvider({ children }: { children: ReactNode }) {
   const [positions, setPositions] = useState<MarketPosition[]>([]);
   const [decrypted, setDecrypted] = useState(false);
 
-  const decryptAll = useCallback(async () => {
-    if (!address || !publicClient) return;
+  const decryptAll = useCallback(async (): Promise<boolean> => {
+    if (!address || !publicClient) return false;
     setBusy(true);
     setError(null);
     try {
@@ -136,12 +138,25 @@ export function DecryptionProvider({ children }: { children: ReactNode }) {
       setPositions(newPositions);
       setDecrypted(true);
       setPublicView(false);
+      return true;
     } catch (e) {
       setError((e as Error).message.slice(0, 200));
+      return false;
     } finally {
       setBusy(false);
     }
   }, [address, publicClient, signTypedDataAsync]);
+
+  // Right after a tx confirms, the relayer may not be able to decrypt the fresh
+  // handles yet (coprocessor lag). One failed decrypt used to leave the UI on
+  // stale values until a manual page reload — retry instead.
+  const refreshAfterTx = useCallback(async () => {
+    if (!decrypted) return;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      if (attempt > 0) await new Promise((r) => setTimeout(r, 3_000));
+      if (await decryptAll()) return;
+    }
+  }, [decrypted, decryptAll]);
 
   const reset = useCallback(() => {
     setWallet({});
@@ -171,8 +186,8 @@ export function DecryptionProvider({ children }: { children: ReactNode }) {
   }, [address, publicClient, decrypted, busy, decryptAll]);
 
   const value = useMemo(
-    () => ({ publicView, setPublicView, decrypted, busy, error, wallet, positions, decryptAll, reset }),
-    [publicView, decrypted, busy, error, wallet, positions, decryptAll, reset],
+    () => ({ publicView, setPublicView, decrypted, busy, error, wallet, positions, decryptAll, refreshAfterTx, reset }),
+    [publicView, decrypted, busy, error, wallet, positions, decryptAll, refreshAfterTx, reset],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

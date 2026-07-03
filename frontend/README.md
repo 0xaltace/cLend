@@ -1,73 +1,54 @@
-# React + TypeScript + Vite
+# cLend frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React dApp for cLend — see the [root README](../README.md) for what the protocol is and how it works.
 
-Currently, two official plugins are available:
+**Stack:** React 19 · Vite · TypeScript · wagmi/viem · `@zama-fhe/relayer-sdk` (client-side FHE) · Tailwind CSS ·
+framer-motion.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Run
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
+npm run dev        # http://localhost:5173
+npm run build      # typecheck + production bundle in dist/
+npm run lint
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Optional env vars (`.env.local`):
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+- `VITE_SEPOLIA_RPC_URL` — dedicated Sepolia RPC, tried before the public fallback pool.
+- `VITE_WALLETCONNECT_PROJECT_ID` — enables the WalletConnect option in the connect modal; safe to omit.
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+Contract addresses live in [`src/lib/config.ts`](src/lib/config.ts).
+
+## Source layout
+
+```
+src/pages/        Landing, Markets (AppPage), Portfolio, Liquidations, Faucet
+src/components/   feature components; viz/ holds the gauges, meters, and cipher effects
+src/context/      DecryptionContext (decrypted balances + refresh), ThemeContext (light/dark)
+src/hooks/        useEncryptedWrite (encrypt → submit → wait for post-tx state), useRateSync
+src/lib/          wagmi config, ABIs, fhevm session cache, market snapshots, position math
+```
+
+## How the FHE pieces fit
+
+- **Encrypt on submit** — [`useEncryptedWrite`](src/hooks/useEncryptedWrite.ts) encrypts the amount locally with a ZK
+  input proof, submits ciphertext, waits for the receipt, then polls until the RPC reflects the new balance handle
+  (public fallback RPCs can lag a block).
+- **Decrypt on demand** — [`DecryptionContext`](src/context/DecryptionContext.tsx) batch-decrypts wallet balances and
+  positions through the relayer using a cached EIP-712 session ([`lib/fhevm.ts`](src/lib/fhevm.ts)): one wallet
+  signature covers 24 hours of silent refreshes. `refreshAfterTx` retries after transactions while the relayer catches
+  up to the new block.
+- **Privacy lens** — the eye toggle re-renders every private value as the ciphertext the public chain actually sees.
+
+## Cross-origin isolation (WASM)
+
+The relayer SDK's WASM uses `SharedArrayBuffer`, which requires COOP/COEP headers. `vite.config.ts` sets them for
+`dev` and `preview`; for production deploys the host must serve them too — after deploying, always verify one
+encrypt/decrypt on the live URL:
+
+```
+Cross-Origin-Opener-Policy: same-origin
+Cross-Origin-Embedder-Policy: require-corp
 ```

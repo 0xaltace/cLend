@@ -7,21 +7,22 @@
     "npm": ">=7.0.0"
   },
   "license": "BSD-3-Clause-Clear",
-  "homepage": "https://github.com/zama-ai/fhevm-hardhat-template/README.md",
+  "homepage": "https://github.com/0xaltace/cLend#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/zama-ai/fhevm-hardhat-template.git"
+    "url": "git+https://github.com/0xaltace/cLend.git"
   },
   "keywords": [
     "fhevm",
     "zama",
-    "eth",
+    "fhe",
+    "confidential",
+    "lending",
+    "defi",
+    "erc7984",
     "ethereum",
-    "dapps",
-    "wallet",
-    "web3",
-    "typescript",
-    "hardhat"
+    "hardhat",
+    "typescript"
   ],
   "dependencies": {
     "@fhevm/mock-utils": "^0.4.2",

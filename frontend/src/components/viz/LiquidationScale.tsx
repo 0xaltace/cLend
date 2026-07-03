@@ -16,7 +16,7 @@ export function LiquidationScale({ symbol, currentPrice, liqPrice, projectedLiqP
 
   if (effective === null || effective <= 0) {
     return (
-      <div className="text-xs text-slate-400">
+      <div className="text-xs text-t2">
         <span className="text-pos font-bold">No liquidation price</span> — without debt, the price of{" "}
         {symbol} cannot liquidate this position.
       </div>
@@ -32,10 +32,10 @@ export function LiquidationScale({ symbol, currentPrice, liqPrice, projectedLiqP
 
   return (
     <div>
-      <div className="text-[11px] text-slate-400 mb-1.5">
+      <div className="text-[11px] text-t2 mb-1.5">
         {symbol} liquidation runway —{" "}
         {dropPct > 0 ? (
-          <span className="text-slate-200">
+          <span className="text-t1">
             {ghost !== undefined && <span className="text-accent-2 font-bold">projected: </span>}
             price must fall <span className="font-mono font-bold text-accent">{dropPct.toFixed(1)}%</span> to{" "}
             <span className="font-mono font-bold text-neg">{fmt(effective)}</span> before liquidation
@@ -44,7 +44,7 @@ export function LiquidationScale({ symbol, currentPrice, liqPrice, projectedLiqP
           <span className="text-neg font-bold">BELOW LIQUIDATION PRICE</span>
         )}
       </div>
-      <div className="relative h-3 rounded-full bg-gradient-to-r from-neg/60 via-amber-400/50 to-pos/60">
+      <div className="relative h-3 rounded-full bg-gradient-to-r from-neg/60 via-accent/40 to-pos/60">
         {/* current liquidation marker */}
         {liqPrice !== null && liqPrice > 0 && (
           <>
@@ -64,10 +64,10 @@ export function LiquidationScale({ symbol, currentPrice, liqPrice, projectedLiqP
         )}
         {/* current price marker */}
         <div
-          className="absolute -top-2 -translate-x-1/2 w-3 h-3 rotate-45 bg-slate-100 border border-ink rounded-[3px] shadow"
+          className="absolute -top-2 -translate-x-1/2 w-3 h-3 rotate-45 bg-t1 border border-card rounded-[3px] shadow"
           style={{ left: `${pct(currentPrice)}%` }}
         />
-        <div className="absolute -top-7 text-[9px] font-mono text-slate-200 -translate-x-1/2 whitespace-nowrap" style={{ left: `${pct(currentPrice)}%` }}>
+        <div className="absolute -top-7 text-[9px] font-mono text-t1 -translate-x-1/2 whitespace-nowrap" style={{ left: `${pct(currentPrice)}%` }}>
           Now {fmt(currentPrice)}
         </div>
       </div>

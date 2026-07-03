@@ -2,6 +2,8 @@ import { AnimatePresence, motion } from "framer-motion";
 import { createContext, useContext, useState, type ReactNode } from "react";
 import { useConnect, type Connector } from "wagmi";
 
+import { IconWallet } from "./Icons";
+
 interface WalletModalCtx {
   open: () => void;
 }
@@ -19,9 +21,9 @@ const WALLETCONNECT_LOGO = svgUri(
 );
 
 // Friendly labels + logos per connector id.
-const META: Record<string, { label: string; hint: string; logo?: string; emoji?: string }> = {
-  injected: { label: "Browser wallet", hint: "MetaMask, Rabby, Brave", emoji: "🦊" },
-  metaMaskSDK: { label: "MetaMask", hint: "Browser or mobile", emoji: "🦊" },
+const META: Record<string, { label: string; hint: string; logo?: string }> = {
+  injected: { label: "Browser wallet", hint: "MetaMask, Rabby, Brave" },
+  metaMaskSDK: { label: "MetaMask", hint: "Browser or mobile" },
   coinbaseWalletSDK: { label: "Coinbase Wallet", hint: "Extension or mobile", logo: COINBASE_LOGO },
   walletConnect: { label: "WalletConnect", hint: "Scan with any mobile wallet", logo: WALLETCONNECT_LOGO },
 };
@@ -40,14 +42,15 @@ export function WalletModalProvider({ children }: { children: ReactNode }) {
       <AnimatePresence>
         {isOpen && (
           <motion.div
-            className="fixed inset-0 z-50 grid place-items-center bg-ink/60 backdrop-blur-sm px-4"
+            className="fixed inset-0 z-50 grid place-items-center backdrop-blur-md px-4"
+            style={{ background: "var(--overlay)" }}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setIsOpen(false)}
           >
             <motion.div
-              className="panel p-5 w-full max-w-sm"
+              className="card-glow p-5 w-full max-w-sm"
               initial={{ scale: 0.96, y: 8 }}
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.96, opacity: 0 }}
@@ -55,12 +58,12 @@ export function WalletModalProvider({ children }: { children: ReactNode }) {
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between">
-                <div className="font-black tracking-tight text-slate-100">Connect a wallet</div>
-                <button className="text-slate-400 hover:text-slate-100 text-sm px-1" onClick={() => setIsOpen(false)}>
+                <div className="font-display font-bold tracking-tight text-t1">Connect a wallet</div>
+                <button className="text-t2 hover:text-t1 text-sm px-1" onClick={() => setIsOpen(false)}>
                   ✕
                 </button>
               </div>
-              <p className="text-[11px] text-slate-400 mt-1">You'll be connected on the Sepolia testnet.</p>
+              <p className="text-[11px] text-t2 mt-1">You'll be connected on the Sepolia testnet.</p>
 
               <div className="mt-4 space-y-2 max-h-[52vh] overflow-y-auto pr-1">
                 {walletList(connectors).map((c) => {
@@ -73,16 +76,18 @@ export function WalletModalProvider({ children }: { children: ReactNode }) {
                       key={c.uid}
                       onClick={() => pick(c)}
                       disabled={isPending}
-                      className="w-full flex items-center gap-3 bg-panel-2 border border-line hover:border-accent rounded-xl px-3 py-3 text-left transition-colors disabled:opacity-60"
+                      className="w-full flex items-center gap-3 well hover:border-accent/50 rounded-xl px-3 py-3 text-left transition-all disabled:opacity-60"
                     >
                       {src ? (
                         <img src={src} alt="" className="w-7 h-7 rounded-lg shrink-0" />
                       ) : (
-                        <span className="text-xl w-7 text-center shrink-0">{m?.emoji ?? "👛"}</span>
+                        <span className="w-7 h-7 grid place-items-center text-t2 shrink-0">
+                          <IconWallet size={20} />
+                        </span>
                       )}
                       <span className="flex-1 min-w-0">
-                        <span className="block text-sm font-semibold truncate text-slate-100">{label}</span>
-                        {hint && <span className="block text-[11px] text-slate-400">{hint}</span>}
+                        <span className="block text-sm font-semibold truncate text-t1">{label}</span>
+                        {hint && <span className="block text-[11px] text-t2">{hint}</span>}
                       </span>
                     </button>
                   );

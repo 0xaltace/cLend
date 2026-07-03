@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useAccount, useReadContract, useWriteContract } from "wagmi";
+import { useAccount, usePublicClient, useReadContract, useWriteContract } from "wagmi";
 
 import { useDecryption } from "../context/DecryptionContext";
 import { useEncryptedWrite } from "../hooks/useEncryptedWrite";
@@ -12,12 +12,12 @@ import { availableLiquidity, useAllSnapshots } from "../lib/snapshot";
 type Action = "supply" | "withdrawSupply" | "addCollateral" | "withdrawCollateral" | "borrow" | "repay";
 
 const ACTIONS: Array<{ id: Action; label: string; token: "debt" | "collateral" | "shares"; needsOperator: "debt" | "collateral" | null; blurb: string }> = [
-  { id: "supply", label: "Supply", token: "debt", needsOperator: "debt", blurb: "Lend the debt asset, earn encrypted interest-bearing shares." },
-  { id: "withdrawSupply", label: "Withdraw", token: "shares", needsOperator: null, blurb: "Redeem shares for underlying, clamped to pool liquidity." },
-  { id: "addCollateral", label: "Add collateral", token: "collateral", needsOperator: "collateral", blurb: "Deposit encrypted collateral. Nobody can see how much." },
-  { id: "withdrawCollateral", label: "Remove collateral", token: "collateral", needsOperator: null, blurb: "Withdraws up to your safe maximum — over-asks clamp silently." },
-  { id: "borrow", label: "Borrow", token: "debt", needsOperator: null, blurb: "Borrow against collateral. Your borrow power stays encrypted." },
-  { id: "repay", label: "Repay", token: "debt", needsOperator: "debt", blurb: "Repay debt. Overpayment clamps to what you owe." },
+  { id: "supply", label: "Supply", token: "debt", needsOperator: "debt", blurb: "Lend and earn encrypted interest-bearing shares." },
+  { id: "withdrawSupply", label: "Withdraw", token: "shares", needsOperator: null, blurb: "Redeem shares, clamped to pool liquidity." },
+  { id: "addCollateral", label: "Add collateral", token: "collateral", needsOperator: "collateral", blurb: "Deposit encrypted collateral." },
+  { id: "withdrawCollateral", label: "Remove collateral", token: "collateral", needsOperator: null, blurb: "Withdraw up to your safe maximum." },
+  { id: "borrow", label: "Borrow", token: "debt", needsOperator: null, blurb: "Borrow against encrypted collateral." },
+  { id: "repay", label: "Repay", token: "debt", needsOperator: "debt", blurb: "Repay debt — overpayment clamps." },
 ];
 
 const GROUPS: Record<"borrow" | "earn", Action[]> = {
@@ -27,7 +27,8 @@ const GROUPS: Record<"borrow" | "earn", Action[]> = {
 
 export function MarketActions({ market, onDone, onPreview, group }: {
   market: MarketInfo;
-  onDone: () => void;
+  /** Optional extra hook after a confirmed action — balances refresh automatically regardless. */
+  onDone?: () => void;
   onPreview?: (preview: { fn: Action; amount6: bigint } | null) => void;
   /** Show only one side's actions; omit for all six. */
   group?: "borrow" | "earn";
@@ -45,6 +46,7 @@ export function MarketActions({ market, onDone, onPreview, group }: {
 
   const encryptedWrite = useEncryptedWrite(market.address);
   const { writeContractAsync } = useWriteContract();
+  const publicClient = usePublicClient();
   const { snapshots } = useAllSnapshots();
 
   const spec = ACTIONS.find((a) => a.id === action)!;
@@ -61,7 +63,7 @@ export function MarketActions({ market, onDone, onPreview, group }: {
   const needsApproval = spec.needsOperator !== null && isOperator === false;
   const amount6 = parse6(amount);
 
-  const { decrypted, wallet, positions, decryptAll } = useDecryption();
+  const { decrypted, wallet, positions, refreshAfterTx } = useDecryption();
   const position = positions.find((p) => p.market.address === market.address);
   const view = position ? computePosition(position) : null;
   const snap = snapshots.get(market.address);
@@ -134,14 +136,21 @@ export function MarketActions({ market, onDone, onPreview, group }: {
   async function approveOperator() {
     setStatus("Approving market as operator…");
     try {
-      await writeContractAsync({
+      const hash = await writeContractAsync({
         address: operatorToken,
         abi: WRAPPER_ABI,
         functionName: "setOperator",
         args: [market.address, Math.floor(Date.now() / 1000) + OPERATOR_TTL_SECONDS],
       });
+      setStatus("Waiting for confirmation…");
+      await publicClient!.waitForTransactionReceipt({ hash });
+      // Poll until the read catches up — public RPCs can lag the mined block.
+      for (let i = 0; i < 6; i++) {
+        const { data } = await refetchOperator();
+        if (data === true) break;
+        await new Promise((r) => setTimeout(r, 2_000));
+      }
       setStatus("Operator approved. You can submit now.");
-      setTimeout(() => refetchOperator(), 3_000);
     } catch (e) {
       setStatus(`Approval failed: ${(e as Error).message.slice(0, 120)}`);
     }
@@ -153,14 +162,18 @@ export function MarketActions({ market, onDone, onPreview, group }: {
     if (trackFill) pendingFill.current = { fn: action, requested: amount6, before: fillBefore(action) };
     setStatus("Encrypting amount locally…");
     try {
+      // The wallet cToken this action debits/credits — every one of the six
+      // actions moves it, so its handle changing means reads are post-tx.
+      const watchToken =
+        action === "addCollateral" || action === "withdrawCollateral" ? market.collateral.cToken : market.debt.cToken;
       await encryptedWrite.mutateAsync(
-        { fn: action, amount6 },
+        { fn: action, amount6, watchToken },
         { onSuccess: () => setStatus(trackFill ? "Confirmed ✓ — reading actual fill…" : "Confirmed ✓ — amount stayed encrypted on-chain") },
       );
       setAmount("");
       onPreview?.(null);
-      if (decrypted) await decryptAll();
-      onDone();
+      await refreshAfterTx();
+      onDone?.();
     } catch (e) {
       pendingFill.current = null;
       setStatus(`Failed: ${(e as Error).message.slice(0, 160)}`);
@@ -172,7 +185,7 @@ export function MarketActions({ market, onDone, onPreview, group }: {
 
   return (
     <div className={group ? "" : "panel p-4"}>
-      <div className="flex flex-wrap gap-1.5 mb-3">
+      <div className="inline-flex flex-wrap gap-1 mb-3 rounded-xl border border-edge bg-well p-1">
         {visibleActions.map((a) => (
           <button
             key={a.id}
@@ -181,19 +194,19 @@ export function MarketActions({ market, onDone, onPreview, group }: {
               setStatus(null);
               updatePreview(a.id, amount);
             }}
-            className={`btn text-xs px-3 py-1.5 ${action === a.id ? "bg-accent text-ink" : "bg-panel-2 border border-line"}`}
+            className={`seg ${action === a.id ? "seg-active" : ""}`}
           >
             {a.label}
           </button>
         ))}
       </div>
 
-      <p className="text-xs text-slate-400 mb-3">{spec.blurb}</p>
+      <p className="text-xs text-t2 mb-3">{spec.blurb}</p>
 
       <div className="flex gap-2">
         <div className="relative flex-1">
           <input
-            className="input pr-14"
+            className="input pr-16"
             placeholder={`Amount (${inputToken})`}
             value={amount}
             onChange={(e) => {
@@ -203,7 +216,7 @@ export function MarketActions({ market, onDone, onPreview, group }: {
           />
           {maxFill !== null && maxFill > 0n && (
             <button
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-bold text-accent-2 hover:text-accent transition-colors"
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-bold text-accent-2 hover:text-accent transition-colors rounded-md px-1.5 py-0.5 border border-accent-2/25 hover:border-accent/40"
               onClick={() => {
                 // borrow: leave 1% headroom so price drift between read and tx can't zero it
                 const m = action === "borrow" ? (maxFill * 99n) / 100n : maxFill;
@@ -233,31 +246,30 @@ export function MarketActions({ market, onDone, onPreview, group }: {
 
       {/* limits / captions */}
       {action === "borrow" && decrypted && (
-        <div className="text-[11px] text-slate-500 mt-1.5 font-mono space-y-0.5">
+        <div className="text-[11px] text-t3 mt-1.5 font-mono space-y-0.5">
           {borrowPower6 !== null && <div>Borrow power: {fmt6(borrowPower6)} {market.debt.symbol}</div>}
           {poolLiquidity !== null ? (
             <div>Pool liquidity: ~{fmt6(poolLiquidity)} {market.debt.symbol} (as of last sync)</div>
           ) : (
-            <div className="text-amber-400/80">Pool liquidity unknown — run a rate sync to enable borrowing</div>
+            <div className="text-accent/80">Pool liquidity unknown — run a rate sync to enable borrowing</div>
           )}
         </div>
       )}
       {available !== null && action !== "borrow" && (
-        <p className="text-[11px] text-slate-500 mt-1.5 font-mono">
+        <p className="text-[11px] text-t3 mt-1.5 font-mono">
           {balanceLabel}: {fmt6(available)}{" "}
-          {action === "withdrawCollateral" && <span className="text-slate-600">(LTV may clamp lower)</span>}
+          {action === "withdrawCollateral" && <span className="text-t3">(LTV may clamp lower)</span>}
         </p>
       )}
       {decrypted === false && (
-        <p className="text-[11px] text-slate-500 mt-1.5">Decrypt your portfolio to enable limit checks and MAX</p>
+        <p className="text-[11px] text-t3 mt-1.5">Decrypt your portfolio to enable limit checks and MAX</p>
       )}
 
       {/* hard blocks */}
       {overBorrow && (
         <p className="text-neg text-xs mt-2">
           Exceeds your {borrowMax6 === poolLiquidity ? "available pool liquidity" : "borrow power"} of{" "}
-          {fmt6(borrowMax6!)} {market.debt.symbol}. Lower the amount — the transaction is blocked so it
-          can't partial-fill or waste gas.
+          {fmt6(borrowMax6!)} {market.debt.symbol} — lower the amount.
         </p>
       )}
       {insufficient && (
@@ -266,7 +278,9 @@ export function MarketActions({ market, onDone, onPreview, group }: {
         </p>
       )}
       {amount && amount6 === null && <p className="text-neg text-xs mt-2">Invalid amount (max 6 decimals)</p>}
-      {status && <p className="text-xs mt-2 text-slate-300">{status}</p>}
+      {status && (
+        <p className="text-[11px] mt-2.5 text-t2 well rounded-lg px-3 py-2 font-mono">{status}</p>
+      )}
     </div>
   );
 }

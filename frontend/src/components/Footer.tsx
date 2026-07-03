@@ -7,18 +7,18 @@ const ES = "https://sepolia.etherscan.io/address";
 
 export function Footer() {
   return (
-    <footer className="border-t border-line mt-16 bg-panel/40">
-      <div className="max-w-5xl mx-auto px-4 py-10 grid md:grid-cols-[1.4fr_1fr_1fr_1fr] gap-8">
+    <footer className="relative mt-20 border-t border-edge">
+      <div className="max-w-6xl mx-auto px-4 py-12 grid md:grid-cols-[1.4fr_1fr_1fr_1fr] gap-8">
         <div>
           <Logo withTag />
-          <p className="text-[11px] text-slate-500 mt-3 leading-relaxed max-w-60">
+          <p className="text-[11px] text-t3 mt-4 leading-relaxed max-w-60">
             The first fully encrypted lending platform. Collateral, debt and health factors are stored
             on-chain as FHE ciphertext, while the protocol still enforces solvency.
           </p>
-          <div className="flex gap-1.5 mt-3">
-            <span className="tag bg-panel-2 text-accent-2 border border-line">Sepolia</span>
-            <span className="tag bg-panel-2 text-pos border border-line">ERC-7984</span>
-            <span className="tag bg-panel-2 text-accent border border-line">Zama FHEVM</span>
+          <div className="flex gap-1.5 mt-4">
+            <span className="tag bg-accent-2/[0.07] text-accent-2 border border-accent-2/20">Sepolia</span>
+            <span className="tag bg-pos/[0.07] text-pos border border-pos/20">ERC-7984</span>
+            <span className="tag bg-accent/[0.07] text-accent border border-accent/20">Zama FHEVM</span>
           </div>
         </div>
 
@@ -50,8 +50,8 @@ export function Footer() {
           ]}
         />
       </div>
-      <div className="border-t border-line/60">
-        <div className="max-w-5xl mx-auto px-4 py-4 flex flex-wrap justify-between gap-2 text-[10px] text-slate-600">
+      <div className="border-t border-edge/60">
+        <div className="max-w-6xl mx-auto px-4 py-4 flex flex-wrap justify-between gap-2 text-[10px] text-t3">
           <span>© 2026 cLend — Confidential lending on the Zama Protocol</span>
           <span>Sepolia testnet · Zama Developer Program Season 3</span>
         </div>
@@ -66,17 +66,17 @@ function FooterCol({ title, links }: {
 }) {
   return (
     <div>
-      <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-3">{title}</div>
-      <ul className="space-y-2 text-xs">
+      <div className="label mb-3.5">{title}</div>
+      <ul className="space-y-2.5 text-xs">
         {links.map((l) => (
           <li key={l.label}>
             {l.to ? (
-              <Link to={l.to} className="text-slate-300 hover:text-accent transition-colors">
+              <Link to={l.to} className="text-t2 hover:text-accent transition-colors">
                 {l.label}
               </Link>
             ) : (
-              <a href={l.href} target="_blank" rel="noreferrer" className="text-slate-300 hover:text-accent transition-colors">
-                {l.label} ↗
+              <a href={l.href} target="_blank" rel="noreferrer" className="text-t2 hover:text-accent transition-colors">
+                {l.label} <span className="text-t3">↗</span>
               </a>
             )}
           </li>

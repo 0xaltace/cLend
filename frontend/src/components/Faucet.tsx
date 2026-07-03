@@ -1,3 +1,4 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { bytesToHex, decodeEventLog, formatUnits } from "viem";
 import { useAccount, usePublicClient, useReadContract, useReadContracts, useWriteContract } from "wagmi";
@@ -29,8 +30,16 @@ export function Faucet() {
   const { address } = useAccount();
   const publicClient = usePublicClient();
   const { writeContractAsync } = useWriteContract();
+  const { refreshAfterTx } = useDecryption();
+  const queryClient = useQueryClient();
   const [busy, setBusy] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
+
+  /** Snap all on-chain reads (unwrapped balances) and re-decrypt confidential ones. */
+  const refreshBalances = (confidential: boolean) => {
+    void queryClient.invalidateQueries();
+    if (confidential) void refreshAfterTx();
+  };
 
   // Single transient status line (no running log). Terminal messages auto-clear.
   const append = (line: string) => {
@@ -111,6 +120,7 @@ export function Faucet() {
       });
       await publicClient.waitForTransactionReceipt({ hash });
 
+      refreshBalances(true);
       append(`${symbol}: done ✓ — balance is now encrypted on-chain`);
     } catch (e) {
       append(`${symbol}: ${cleanError(e)}`);
@@ -145,6 +155,7 @@ export function Faucet() {
         args: [address, amount6 * rate],
       });
       await publicClient.waitForTransactionReceipt({ hash });
+      refreshBalances(false);
       append(`${symbol}: minted ${amountText} ✓ (public ERC-20 — wrap it to make it confidential)`);
     } catch (e) {
       append(`${symbol}: ${cleanError(e)}`);
@@ -199,6 +210,7 @@ export function Faucet() {
       });
       await publicClient.waitForTransactionReceipt({ hash });
 
+      refreshBalances(true);
       append(`${symbol}: wrapped ${amountText} ✓ — now encrypted ERC-7984`);
     } catch (e) {
       append(`${symbol}: ${cleanError(e)}`);
@@ -258,6 +270,7 @@ export function Faucet() {
         args: [requestId as `0x${string}`, cleartext, results.decryptionProof],
       });
       await publicClient.waitForTransactionReceipt({ hash: finalizeHash });
+      refreshBalances(true);
       append(`${symbol}: unwrapped ✓ — underlying ERC-20 returned to your wallet`);
     } catch (e) {
       append(`${symbol}: unwrap ${cleanError(e)}`);
@@ -267,8 +280,8 @@ export function Faucet() {
   }
 
   return (
-    <div className="panel p-4">
-      <div className="grid md:grid-cols-3 gap-2">
+    <div className="panel p-5">
+      <div className="grid md:grid-cols-3 gap-3">
         {Object.values(ASSETS).map((asset) => (
           <FaucetRow
             key={asset.symbol}
@@ -284,7 +297,7 @@ export function Faucet() {
       </div>
 
       {status && (
-        <div className="mt-3 text-[11px] text-slate-400 font-mono flex items-center gap-2">
+        <div className="mt-3 text-[11px] text-t2 font-mono flex items-center gap-2">
           {busy && <span className="inline-block w-2 h-2 rounded-full bg-accent animate-pulse" />}
           {status}
         </div>
@@ -331,9 +344,13 @@ function FaucetRow({ asset, busy, disabled, onMint, onMintOnly, onWrapExisting, 
   const wrapped6 = wallet[asset.symbol] ?? 0n;
 
   return (
-    <div className="bg-panel-2 rounded-xl p-3">
-      <div className="flex items-center justify-between mb-2">
+    <div className="well rounded-xl p-3.5">
+      <div className="flex items-center gap-2 mb-2.5">
+        <span className="w-7 h-7 rounded-full grid place-items-center text-xs font-bold text-accent-2 bg-gradient-to-br from-accent-2/20 to-accent-2/[0.03] border border-accent-2/25">
+          {asset.logo}
+        </span>
         <div className="font-bold text-sm">{asset.symbol}</div>
+        {asset.postedFeed && <span className="text-accent text-[10px] ml-auto" title="Posted feed">◆</span>}
       </div>
       <div className="flex items-center justify-between text-[10px] font-mono mb-2 gap-2">
         {/* Wrapped: clickable to fill the input (Unwrap), but only when revealed */}
@@ -346,11 +363,11 @@ function FaucetRow({ asset, busy, disabled, onMint, onMintOnly, onWrapExisting, 
             setAmount(toInputString(wrapped6));
           }}
         >
-          <span className="text-slate-500">Wrapped: </span>
+          <span className="text-t3">Wrapped: </span>
           {wrappedHidden ? (
             <CipherValue value="" hidden chars={6} className="text-[10px]" />
           ) : (
-            <span className={wrapped6 > 0n ? "text-pos" : "text-slate-400"}>{fmt6(wrapped6)}</span>
+            <span className={wrapped6 > 0n ? "text-pos" : "text-t2"}>{fmt6(wrapped6)}</span>
           )}
         </button>
         {/* Unwrapped: always public; clickable to fill the input (Wrap) */}
@@ -359,8 +376,8 @@ function FaucetRow({ asset, busy, disabled, onMint, onMintOnly, onWrapExisting, 
           title="Click to fill amount"
           onClick={() => setAmount(unwrapped > 0 ? String(unwrapped) : amount)}
         >
-          <span className="text-slate-500">Unwrapped: </span>
-          <span className={unwrapped > 0 ? "text-accent" : "text-slate-400"}>
+          <span className="text-t3">Unwrapped: </span>
+          <span className={unwrapped > 0 ? "text-accent" : "text-t2"}>
             {unwrapped.toLocaleString(undefined, { maximumFractionDigits: 4 })}
           </span>
         </button>

@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { useReadContracts } from "wagmi";
 
 import { ActivityFeed } from "../components/ActivityFeed";
+import { IconArrowRight, IconMinus, IconPlus, IconScale } from "../components/Icons";
 import { LowAnonymityBadge, MarketTvl, SyncBadge, TvlBanner } from "../components/MarketWidgets";
 import { MarketActions } from "../components/MarketActions";
 import { MyPosition, type Preview } from "../components/MyPosition";
@@ -12,7 +13,7 @@ import { RateCurve } from "../components/viz/RateCurve";
 import { UtilizationArc } from "../components/viz/UtilizationArc";
 import { useDecryption } from "../context/DecryptionContext";
 import { MARKET_ABI, ORACLE_ABI } from "../lib/abis";
-import { ADDRESSES, MARKETS, type MarketInfo } from "../lib/config";
+import { ADDRESSES, MARKETS, type AssetInfo, type MarketInfo } from "../lib/config";
 import { aprPct, fmt6, priceUsd } from "../lib/format";
 import { utilizationFromApr6 } from "../lib/positionMath";
 import { tvlOf, usd, useAllSnapshots, type MarketSnapshot } from "../lib/snapshot";
@@ -43,37 +44,57 @@ export function AppPage() {
   const { snapshots } = useAllSnapshots();
 
   return (
-    <div className="max-w-5xl mx-auto px-4 pb-16 pt-6 space-y-3">
-      <TvlBanner />
-      {MARKETS.map((market, i) => (
-        <div key={market.address} id={`market-${i}`} className="scroll-mt-20">
-          {openSet.has(i) ? (
-            <FeaturedMarket market={market} snap={snapshots.get(market.address)} onCollapse={() => toggleMarket(i)} />
-          ) : (
-            <CollapsedMarketRow market={market} snap={snapshots.get(market.address)} onOpen={() => toggleMarket(i)} />
-          )}
-        </div>
-      ))}
+    <div className="max-w-6xl mx-auto px-4 pb-16 pt-8 space-y-4">
+      <div>
+        <h2 className="text-2xl font-bold tracking-tight">Markets</h2>
+        <p className="text-xs text-t2 mt-1">Isolated FHE lending pairs on official registry assets.</p>
+      </div>
 
-      <div className="grid lg:grid-cols-2 gap-3">
-        <ActivityFeed />
-        <div className="space-y-3">
-          <div className="panel p-3 text-xs text-slate-400 leading-relaxed">
-            <span className="font-bold text-slate-300">7 markets, 7 registry assets: </span>
-            Every confidential token here is an official Zama registry wrapper, re-validated on-chain at
-            market creation. ctGBP and cXAUt price off live Chainlink GBP/USD and XAU/USD feeds; the
-            mock-only assets (cZAMA, cUSDT, cBRON) use posted feeds, labeled ◆ wherever they appear.
+      <TvlBanner />
+
+      {/* column header for the market table */}
+      <div className="hidden md:grid grid-cols-[1.7fr_1fr_0.8fr_0.8fr_72px_36px] gap-4 items-center px-5 pt-2">
+        <span className="label">Pair</span>
+        <span className="label text-right">TVL</span>
+        <span className="label text-right">Supply APR</span>
+        <span className="label text-right">Borrow APR</span>
+        <span className="label text-center">Util</span>
+        <span />
+      </div>
+
+      <div className="space-y-2.5 !mt-2">
+        {MARKETS.map((market, i) => (
+          <div key={market.address} id={`market-${i}`} className="scroll-mt-24">
+            {openSet.has(i) ? (
+              <FeaturedMarket market={market} snap={snapshots.get(market.address)} onCollapse={() => toggleMarket(i)} />
+            ) : (
+              <CollapsedMarketRow market={market} snap={snapshots.get(market.address)} onOpen={() => toggleMarket(i)} />
+            )}
           </div>
-          <Link to="/liquidations" className="panel p-4 block hover:border-slate-500 transition-colors">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-sm font-bold text-slate-200">⚖️ Liquidations & keeper desk</div>
-                <p className="text-[11px] text-slate-400 mt-1">
-                  Run one-bit health checks, watch the live board of flagged positions, liquidate, sync
-                  rates — solvency enforcement without surveillance.
-                </p>
+        ))}
+      </div>
+
+      <div className="grid lg:grid-cols-2 gap-4 pt-2">
+        <ActivityFeed />
+        <div className="space-y-4">
+          <div className="panel p-4 text-xs text-t2 leading-relaxed">
+            All assets are official Zama registry wrappers, re-validated on-chain at market creation.
+            Assets marked ◆ use posted feeds; the rest price off live Chainlink.
+          </div>
+          <Link to="/liquidations" className="panel panel-hover p-5 block group">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-start gap-3">
+                <span className="w-9 h-9 rounded-xl well grid place-items-center text-accent shrink-0">
+                  <IconScale size={17} />
+                </span>
+                <div>
+                  <div className="text-sm font-bold">Liquidations & keeper desk</div>
+                  <p className="text-[11px] text-t2 mt-1">
+                    One-bit health checks, live flag board, encrypted liquidations.
+                  </p>
+                </div>
               </div>
-              <span className="text-slate-500 text-lg">→</span>
+              <IconArrowRight size={16} className="text-t3 group-hover:text-accent group-hover:translate-x-1 transition-all shrink-0" />
             </div>
           </Link>
         </div>
@@ -101,8 +122,25 @@ function useMarketReads(market: MarketInfo) {
   };
 }
 
+function TokenBadge({ asset, tone, size = "lg", z }: {
+  asset: AssetInfo;
+  tone: "collateral" | "debt";
+  size?: "sm" | "lg";
+  z?: boolean;
+}) {
+  const dim = size === "lg" ? "w-10 h-10 text-base" : "w-7 h-7 text-xs";
+  const toneCls =
+    tone === "collateral"
+      ? "text-accent-2 bg-accent-2/10 border-accent-2/25"
+      : "text-accent bg-accent/10 border-accent/25";
+  return (
+    <span className={`${dim} ${toneCls} ${z ? "z-10" : ""} rounded-full border grid place-items-center font-bold shrink-0`} style={{ backgroundColor: "var(--card)" }}>
+      {asset.logo}
+    </span>
+  );
+}
+
 function FeaturedMarket({ market, snap, onCollapse }: { market: MarketInfo; snap: MarketSnapshot | undefined; onCollapse: () => void }) {
-  const { decryptAll, decrypted } = useDecryption();
   const [preview, setPreview] = useState<Preview | null>(null);
   const reads = useMarketReads(market);
   const u6 = reads.borrowApr6 !== null ? utilizationFromApr6(reads.borrowApr6) : 0;
@@ -112,53 +150,46 @@ function FeaturedMarket({ market, snap, onCollapse }: { market: MarketInfo; snap
       layout
       initial={{ opacity: 0, y: 14 }}
       animate={{ opacity: 1, y: 0 }}
-      className="panel p-5 border-accent/50 shadow-[0_0_40px_rgba(251,210,77,0.06)] space-y-4"
+      className="card-glow p-4 sm:p-6 space-y-4 sm:space-y-5"
     >
       {/* header strip */}
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="flex -space-x-2">
-            <span className="w-10 h-10 rounded-full bg-panel-2 border border-line grid place-items-center font-black text-accent-2 text-lg z-10">
-              {market.collateral.logo}
-            </span>
-            <span className="w-10 h-10 rounded-full bg-panel-2 border border-line grid place-items-center font-black text-accent text-lg">
-              {market.debt.logo}
-            </span>
+        <div className="flex items-center gap-3.5">
+          <div className="flex -space-x-2.5">
+            <TokenBadge asset={market.collateral} tone="collateral" z />
+            <TokenBadge asset={market.debt} tone="debt" />
           </div>
           <div>
-            <div className="font-black text-xl leading-tight flex items-center gap-2">
-              {market.collateral.symbol} <span className="text-slate-500 font-medium">/</span> {market.debt.symbol}
+            <div className="font-display font-bold text-lg sm:text-xl leading-tight flex items-center gap-2">
+              {market.collateral.symbol} <span className="text-t3 font-medium">/</span> {market.debt.symbol}
               <LowAnonymityBadge market={market} />
             </div>
-            <div className="text-[11px] text-slate-400">
+            <div className="text-[11px] text-t2 mt-0.5">
               Deposit {market.collateral.symbol} · Borrow {market.debt.symbol}
-              <span className="text-pos ml-2">Registry ✓</span>
-              {market.collateral.postedFeed && <span className="text-amber-400 ml-2">◆ Posted feed</span>}
+              {market.collateral.postedFeed && <span className="text-accent ml-2">◆ Posted feed</span>}
             </div>
           </div>
         </div>
+        <button onClick={onCollapse} className="btn-icon sm:order-last" title="Collapse">
+          <IconMinus size={16} />
+        </button>
 
-        <div className="flex items-center gap-5">
+        <div className="grid grid-cols-2 sm:flex items-center gap-4 sm:gap-6 w-full sm:w-auto">
           <HeaderStat label="Supply APR" value={reads.supplyApr6 !== null ? aprPct(reads.supplyApr6) : "—"} color="text-pos" />
           <HeaderStat label="Borrow APR" value={reads.borrowApr6 !== null ? aprPct(reads.borrowApr6) : "—"} color="text-accent" />
           <HeaderStat
             label={`${market.collateral.symbol} price`}
             value={reads.collatPrice8 !== null ? priceUsd(reads.collatPrice8) : "—"}
-            color="text-slate-200"
+            color="text-t1"
           />
-          <UtilizationArc utilization6={u6} size={62} />
-          <button
-            onClick={onCollapse}
-            className="btn-ghost text-base px-3 py-1"
-            title="Collapse this market"
-          >
-            −
-          </button>
+          <div className="justify-self-end sm:justify-self-auto">
+            <UtilizationArc utilization6={u6} size={54} />
+          </div>
         </div>
       </div>
 
       {/* TVL + sync freshness for this market */}
-      <div className="flex flex-wrap items-center justify-between gap-2 bg-panel-2/40 rounded-xl px-3 py-2">
+      <div className="flex flex-wrap items-center justify-between gap-2 well px-4 py-2.5">
         <MarketTvl snap={snap} />
         <SyncBadge market={market} snap={snap} />
       </div>
@@ -166,28 +197,24 @@ function FeaturedMarket({ market, snap, onCollapse }: { market: MarketInfo; snap
       <MyPosition market={market} preview={preview} />
 
       <div className="grid lg:grid-cols-[1fr_auto] gap-4 items-start">
-        <div className="panel p-4 border-accent/20">
-          <div className="text-[10px] font-bold tracking-widest text-slate-500 mb-2">
-            BORROW — Manage collateral & loan
-          </div>
-          <MarketActions market={market} group="borrow" onDone={() => decrypted && decryptAll()} onPreview={setPreview} />
+        <div className="panel p-4 sm:p-5">
+          <div className="label text-accent mb-3">Borrow — collateral & loan</div>
+          <MarketActions market={market} group="borrow" onPreview={setPreview} />
         </div>
-        <div className="panel bg-panel-2/40 p-4 hidden lg:block">
-          <div className="text-[11px] uppercase tracking-wider text-slate-400 mb-2">Interest rate model</div>
+        <div className="panel p-5 hidden lg:block">
+          <div className="label mb-3">Interest rate model</div>
           <RateCurve utilization6={u6} />
         </div>
       </div>
 
-      <EarnPanel market={market} onDone={() => decrypted && decryptAll()} onPreview={setPreview} />
+      <EarnPanel market={market} onPreview={setPreview} />
     </motion.div>
   );
 }
 
-/** The lender side as its own clearly separated surface: what you've supplied,
- *  what it earns, and the supply/withdraw actions — distinct from your loan. */
-function EarnPanel({ market, onDone, onPreview }: {
+/** The lender side as its own clearly separated surface. */
+function EarnPanel({ market, onPreview }: {
   market: MarketInfo;
-  onDone: () => void;
   onPreview: (p: Preview | null) => void;
 }) {
   const { decrypted, publicView, positions } = useDecryption();
@@ -196,31 +223,26 @@ function EarnPanel({ market, onDone, onPreview }: {
   const hidden = !decrypted || publicView;
 
   return (
-    <div className="panel p-4 border-pos/25 bg-pos/[0.02]">
-      <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
+    <div className="panel p-4 sm:p-5">
+      <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
         <div>
-          <div className="text-[10px] font-bold tracking-widest text-pos/80 mb-0.5">
-            EARN — Lend {market.debt.symbol} to this pool
-          </div>
-          <p className="text-[11px] text-slate-400 max-w-xl leading-snug">
-            Completely separate from any loan: you supply {market.debt.symbol} into the pool that
-            borrowers draw from, and earn the supply APR. Withdraw any time the pool has cash. You can
-            be a lender, a borrower, or both.
+          <div className="label text-pos mb-1.5">Earn — lend {market.debt.symbol}</div>
+          <p className="text-[11px] text-t2 max-w-xl leading-snug">
+            Separate from any loan: supply {market.debt.symbol}, earn the supply APR, withdraw while the
+            pool has cash.
           </p>
         </div>
-        <div className="bg-panel-2 rounded-xl p-3 min-w-52">
-          <div className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">
-            Supplied ({market.debt.symbol})
-          </div>
-          <div className="font-mono font-bold text-lg text-pos">
+        <div className="well rounded-xl p-3.5 min-w-48">
+          <div className="label mb-1">Supplied ({market.debt.symbol})</div>
+          <div className="font-mono font-bold text-lg text-pos tabular">
             <CipherValue value={position ? fmt6(position.supplied, 2) : "0"} hidden={hidden} chars={8} />
           </div>
-          <div className="text-[11px] text-slate-400 font-mono">
-            Earning {reads.supplyApr6 !== null ? aprPct(reads.supplyApr6) : "—"} APR
+          <div className="text-[11px] text-t2 font-mono">
+            {reads.supplyApr6 !== null ? aprPct(reads.supplyApr6) : "—"} APR
           </div>
         </div>
       </div>
-      <MarketActions market={market} group="earn" onDone={onDone} onPreview={onPreview} />
+      <MarketActions market={market} group="earn" onPreview={onPreview} />
     </div>
   );
 }
@@ -234,38 +256,50 @@ function CollapsedMarketRow({ market, snap, onOpen }: { market: MarketInfo; snap
     <motion.button
       layout
       onClick={onOpen}
-      className="panel w-full p-3.5 flex items-center justify-between gap-4 hover:border-slate-500 transition-colors"
+      className="panel panel-hover w-full p-4 md:px-5 grid grid-cols-[1fr_auto] md:grid-cols-[1.7fr_1fr_0.8fr_0.8fr_72px_36px] gap-3 md:gap-4 items-center text-left cursor-pointer group"
     >
-      <div className="flex items-center gap-3">
-        <div className="flex -space-x-1.5">
-          <span className="w-7 h-7 rounded-full bg-panel-2 border border-line grid place-items-center font-bold text-accent-2 text-xs z-10">
-            {market.collateral.logo}
-          </span>
-          <span className="w-7 h-7 rounded-full bg-panel-2 border border-line grid place-items-center font-bold text-accent text-xs">
-            {market.debt.logo}
-          </span>
+      <div className="flex items-center gap-3 min-w-0">
+        <div className="flex -space-x-2">
+          <TokenBadge asset={market.collateral} tone="collateral" size="sm" z />
+          <TokenBadge asset={market.debt} tone="debt" size="sm" />
         </div>
-        <span className="font-bold text-sm">
-          {market.collateral.symbol} <span className="text-slate-500 font-normal">/</span> {market.debt.symbol}
+        <span className="font-display font-bold text-sm truncate">
+          {market.collateral.symbol} <span className="text-t3 font-normal">/</span> {market.debt.symbol}
         </span>
-        {market.collateral.postedFeed && <span className="text-amber-400 text-[10px]">◆</span>}
+        {market.collateral.postedFeed && <span className="text-accent text-[10px]" title="Posted feed">◆</span>}
       </div>
-      <div className="flex items-center gap-5 text-xs font-mono">
-        {tvl && <span className="text-slate-400 hidden sm:inline">TVL <span className="text-slate-200">{usd(tvl.totalUsd)}</span></span>}
-        <span className="text-pos">▲ {reads.supplyApr6 !== null ? aprPct(reads.supplyApr6) : "—"}</span>
-        <span className="text-accent">▼ {reads.borrowApr6 !== null ? aprPct(reads.borrowApr6) : "—"}</span>
+
+      <span className="hidden md:block text-right text-xs font-mono text-t2 tabular">
+        {tvl ? usd(tvl.totalUsd) : "—"}
+      </span>
+      <span className="hidden md:block text-right text-xs font-mono font-bold text-pos tabular">
+        {reads.supplyApr6 !== null ? aprPct(reads.supplyApr6) : "—"}
+      </span>
+      <span className="hidden md:block text-right text-xs font-mono font-bold text-accent tabular">
+        {reads.borrowApr6 !== null ? aprPct(reads.borrowApr6) : "—"}
+      </span>
+      <span className="hidden md:grid place-items-center">
         <UtilizationArc utilization6={u6} size={36} />
-        <span className="text-slate-500 text-base">＋</span>
-      </div>
+      </span>
+
+      {/* mobile compact metrics */}
+      <span className="md:hidden flex items-center gap-2.5 text-[11px] font-mono shrink-0">
+        <span className="text-pos">{reads.supplyApr6 !== null ? aprPct(reads.supplyApr6) : "—"}</span>
+        <span className="text-accent">{reads.borrowApr6 !== null ? aprPct(reads.borrowApr6) : "—"}</span>
+      </span>
+
+      <span className="hidden md:grid place-items-center text-t3 group-hover:text-accent transition-colors">
+        <IconPlus size={15} />
+      </span>
     </motion.button>
   );
 }
 
 function HeaderStat({ label, value, color }: { label: string; value: string; color: string }) {
   return (
-    <div className="text-right">
-      <div className="text-[10px] uppercase tracking-wider text-slate-500">{label}</div>
-      <div className={`font-mono font-bold ${color}`}>{value}</div>
+    <div className="sm:text-right">
+      <div className="label">{label}</div>
+      <div className={`font-mono font-bold tabular ${color}`}>{value}</div>
     </div>
   );
 }

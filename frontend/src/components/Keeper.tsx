@@ -29,7 +29,7 @@ export function Keeper({ market, prefillTarget }: { market: MarketInfo; prefillT
   const [theater, setTheater] = useState<TheaterState>(null);
 
   // Bidding more than your balance moves 0 AND consumes the flag — guard it.
-  const { decrypted, wallet } = useDecryption();
+  const { decrypted, wallet, refreshAfterTx } = useDecryption();
   const debtBalance = decrypted ? (wallet[market.debt.symbol] ?? 0n) : null;
   const repay6 = parse6(repayAmount);
   const overBalance = debtBalance !== null && repay6 !== null && repay6 > debtBalance;
@@ -93,8 +93,14 @@ export function Keeper({ market, prefillTarget }: { market: MarketInfo; prefillT
     setBusy(true);
     try {
       append("Submitting encrypted liquidation…");
-      await encryptedWrite.mutateAsync({ fn: "liquidate", amount6: repay6, target: target as `0x${string}` });
+      await encryptedWrite.mutateAsync({
+        fn: "liquidate",
+        amount6: repay6,
+        target: target as `0x${string}`,
+        watchToken: market.debt.cToken,
+      });
       append("Liquidation confirmed ✓ — seized collateral transferred (amount encrypted)");
+      void refreshAfterTx();
     } catch (e) {
       append(`Liquidation failed: ${(e as Error).message.slice(0, 140)}`);
     } finally {
@@ -157,17 +163,12 @@ export function Keeper({ market, prefillTarget }: { market: MarketInfo; prefillT
   }
 
   return (
-    <div className="panel p-4">
+    <div className="panel p-5">
       <VerdictTheater state={theater} onClose={() => setTheater(null)} />
-      <h3 className="font-bold mb-1">Keeper desk — Be the liquidation bot</h3>
-      <p className="text-xs text-slate-400 mb-3 leading-relaxed">
-        On Aave, bots read everyone's health factor off-chain and snipe liquidations. Here they
-        can't — positions are encrypted. Instead, <b className="text-slate-300">anyone</b> can act as a
-        keeper: pick an address, ask the KMS to check it, and the network answers with{" "}
-        <b className="text-slate-300">one public bit</b> (liquidatable or not) plus a proof. If it's a 1,
-        the liquidate button arms. Keepers earn the 5% liquidation bonus; the borrower's amounts stay
-        hidden even from the keeper who liquidates them. Rate sync is the same idea for the pool's
-        aggregate utilization → interest rates.
+      <h3 className="font-bold mb-1">Keeper desk</h3>
+      <p className="text-xs text-t2 mb-3 leading-relaxed max-w-2xl">
+        Anyone can be a keeper: pick a borrower, ask the KMS for the one-bit verdict, and liquidate if
+        it's a 1 — earning the 5% bonus. Amounts stay hidden even from you.
       </p>
 
       <div className="flex flex-wrap gap-2 mb-2">
@@ -194,12 +195,12 @@ export function Keeper({ market, prefillTarget }: { market: MarketInfo; prefillT
               value={repayAmount}
               onChange={(e) => setRepayAmount(e.target.value)}
             />
-            <button className="btn bg-neg text-ink font-bold" disabled={busy || !repay6 || overBalance} onClick={liquidate}>
+            <button className="btn-danger" disabled={busy || !repay6 || overBalance} onClick={liquidate}>
               Liquidate (encrypted)
             </button>
           </div>
           {debtBalance !== null && (
-            <p className="text-[11px] text-slate-500 mt-1 font-mono">
+            <p className="text-[11px] text-t3 mt-1 font-mono">
               Your {market.debt.symbol}: {fmt6(debtBalance)} — bid at most this
             </p>
           )}
@@ -211,10 +212,14 @@ export function Keeper({ market, prefillTarget }: { market: MarketInfo; prefillT
         </div>
       )}
 
+      {/* console keeps fixed dark colors in both themes, like a code block */}
       {log.length > 0 && (
-        <div className="bg-panel-2 rounded-xl p-2 font-mono text-[11px] text-slate-300">
+        <div className="rounded-xl border border-black/30 bg-[#0a0f1a] p-3 font-mono text-[11px] space-y-0.5">
           {log.map((line, i) => (
-            <div key={i}>{line}</div>
+            <div key={i} className={i === log.length - 1 ? "text-[#4dc8fb]" : "text-[#8b98ad]"}>
+              <span className="text-[#4d5b74] select-none">❯ </span>
+              {line}
+            </div>
           ))}
         </div>
       )}

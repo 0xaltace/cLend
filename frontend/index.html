@@ -4,7 +4,25 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/logo.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#0b0f17" />
+    <meta name="theme-color" content="#06080f" />
+    <script>
+      // Set theme before first paint (no flash). ?theme= overrides, else saved pref, else dark.
+      (function () {
+        var t = null;
+        try {
+          t = new URLSearchParams(location.search).get("theme") || localStorage.getItem("clend-theme");
+        } catch (e) {
+          /* fall through to default */
+        }
+        document.documentElement.dataset.theme = t === "light" ? "light" : "dark";
+      })();
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500;700;800&display=swap"
+      rel="stylesheet"
+    />
     <title>cLend — Fully Encrypted Lending</title>
     <meta
       name="description"
