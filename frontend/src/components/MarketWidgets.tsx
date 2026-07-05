@@ -4,6 +4,7 @@ import { parseAbiItem } from "viem";
 import { usePublicClient } from "wagmi";
 
 import { useRateSync } from "../hooks/useRateSync";
+import { useWrongChain } from "../hooks/useWrongChain";
 import { MARKETS, type MarketInfo } from "../lib/config";
 import { safeGetLogs } from "../lib/logs";
 import { ageLabel, syncStatus, tvlOf, usd, useGlobalTvl, type MarketSnapshot } from "../lib/snapshot";
@@ -71,6 +72,7 @@ export function SyncBadge({ market, snap }: { market: MarketInfo; snap: MarketSn
   const now = useNowSec();
   const st = syncStatus(snap, now);
   const { sync, busy } = useRateSync(market.address);
+  const { wrongChain } = useWrongChain();
 
   return (
     <div className="flex items-center gap-2 text-[11px]">
@@ -80,7 +82,8 @@ export function SyncBadge({ market, snap }: { market: MarketInfo; snap: MarketSn
       </span>
       <button
         className="text-accent-2 hover:text-accent font-semibold disabled:opacity-50 rounded-md px-2 py-0.5 border border-accent-2/20 hover:border-accent/40 transition-colors"
-        disabled={busy}
+        disabled={busy || wrongChain}
+        title={wrongChain ? "Switch to Sepolia to sync" : undefined}
         onClick={() => sync().catch(() => {})}
       >
         {busy ? "syncing…" : "Sync now"}

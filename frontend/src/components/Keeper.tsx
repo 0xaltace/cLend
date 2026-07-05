@@ -4,6 +4,8 @@ import { useAccount, usePublicClient, useWriteContract } from "wagmi";
 
 import { useDecryption } from "../context/DecryptionContext";
 import { useEncryptedWrite } from "../hooks/useEncryptedWrite";
+import { useWrongChain } from "../hooks/useWrongChain";
+import { WrongChainNotice } from "./WrongChainNotice";
 import { MARKET_ABI } from "../lib/abis";
 import type { MarketInfo } from "../lib/config";
 import { aprPct, fmt6, parse6 } from "../lib/format";
@@ -27,6 +29,7 @@ export function Keeper({ market, prefillTarget }: { market: MarketInfo; prefillT
   const [busy, setBusy] = useState(false);
   const [liquidatable, setLiquidatable] = useState<boolean | null>(null);
   const [theater, setTheater] = useState<TheaterState>(null);
+  const { wrongChain } = useWrongChain();
 
   // Bidding more than your balance moves 0 AND consumes the flag — guard it.
   const { decrypted, wallet, refreshAfterTx } = useDecryption();
@@ -178,13 +181,15 @@ export function Keeper({ market, prefillTarget }: { market: MarketInfo; prefillT
           value={target}
           onChange={(e) => setTarget(e.target.value)}
         />
-        <button className="btn-ghost" disabled={busy || !address || !target} onClick={runHealthCheck}>
+        <button className="btn-ghost" disabled={busy || !address || !target || wrongChain} onClick={runHealthCheck}>
           Run health check
         </button>
-        <button className="btn-ghost" disabled={busy || !address} onClick={syncRates}>
+        <button className="btn-ghost" disabled={busy || !address || wrongChain} onClick={syncRates}>
           Sync rates
         </button>
       </div>
+
+      <WrongChainNotice className="mb-2" />
 
       {liquidatable && (
         <div className="mb-2">
@@ -195,7 +200,7 @@ export function Keeper({ market, prefillTarget }: { market: MarketInfo; prefillT
               value={repayAmount}
               onChange={(e) => setRepayAmount(e.target.value)}
             />
-            <button className="btn-danger" disabled={busy || !repay6 || overBalance} onClick={liquidate}>
+            <button className="btn-danger" disabled={busy || !repay6 || overBalance || wrongChain} onClick={liquidate}>
               Liquidate (encrypted)
             </button>
           </div>

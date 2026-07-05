@@ -3,6 +3,8 @@ import { useAccount, usePublicClient, useReadContract, useWriteContract } from "
 
 import { useDecryption } from "../context/DecryptionContext";
 import { useEncryptedWrite } from "../hooks/useEncryptedWrite";
+import { useWrongChain } from "../hooks/useWrongChain";
+import { WrongChainNotice } from "./WrongChainNotice";
 import { WRAPPER_ABI } from "../lib/abis";
 import { OPERATOR_TTL_SECONDS, type MarketInfo } from "../lib/config";
 import { fmt6, parse6, toInputString } from "../lib/format";
@@ -48,6 +50,7 @@ export function MarketActions({ market, onDone, onPreview, group }: {
   const { writeContractAsync } = useWriteContract();
   const publicClient = usePublicClient();
   const { snapshots } = useAllSnapshots();
+  const { wrongChain } = useWrongChain();
 
   const spec = ACTIONS.find((a) => a.id === action)!;
   const operatorToken = spec.needsOperator === "debt" ? market.debt.cToken : market.collateral.cToken;
@@ -230,19 +233,21 @@ export function MarketActions({ market, onDone, onPreview, group }: {
           )}
         </div>
         {needsApproval ? (
-          <button className="btn-ghost whitespace-nowrap" onClick={approveOperator}>
+          <button className="btn-ghost whitespace-nowrap" disabled={wrongChain} onClick={approveOperator}>
             1. Approve operator
           </button>
         ) : (
           <button
             className="btn-primary whitespace-nowrap"
-            disabled={!address || !amount6 || encryptedWrite.isPending || blocked}
+            disabled={!address || !amount6 || encryptedWrite.isPending || blocked || wrongChain}
             onClick={submit}
           >
             {encryptedWrite.isPending ? "Submitting…" : "Submit"}
           </button>
         )}
       </div>
+
+      <WrongChainNotice />
 
       {/* limits / captions */}
       {action === "borrow" && decrypted && (

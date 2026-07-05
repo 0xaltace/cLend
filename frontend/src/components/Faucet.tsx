@@ -4,11 +4,13 @@ import { bytesToHex, decodeEventLog, formatUnits } from "viem";
 import { useAccount, usePublicClient, useReadContract, useReadContracts, useWriteContract } from "wagmi";
 
 import { useDecryption } from "../context/DecryptionContext";
+import { useWrongChain } from "../hooks/useWrongChain";
 import { MINTABLE_ERC20_ABI, WRAPPER_ABI } from "../lib/abis";
 import { ASSETS, type AssetInfo } from "../lib/config";
 import { getFhevm, publicDecrypt } from "../lib/fhevm";
 import { fmt6, parse6, toInputString } from "../lib/format";
 import { CipherValue } from "./viz/CipherValue";
+import { WrongChainNotice } from "./WrongChainNotice";
 
 /** Turn noisy wallet/RPC errors into one clean human line. */
 function cleanError(e: unknown): string {
@@ -31,6 +33,7 @@ export function Faucet() {
   const publicClient = usePublicClient();
   const { writeContractAsync } = useWriteContract();
   const { refreshAfterTx } = useDecryption();
+  const { wrongChain } = useWrongChain();
   const queryClient = useQueryClient();
   const [busy, setBusy] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
@@ -287,7 +290,7 @@ export function Faucet() {
             key={asset.symbol}
             asset={asset}
             busy={busy === asset.symbol}
-            disabled={busy !== null || !address}
+            disabled={busy !== null || !address || wrongChain}
             onMint={(amt) => mintAndWrap(asset.symbol, amt)}
             onMintOnly={(amt) => mintOnly(asset.symbol, amt)}
             onWrapExisting={(amt) => wrapExisting(asset.symbol, amt)}
@@ -295,6 +298,8 @@ export function Faucet() {
           />
         ))}
       </div>
+
+      <WrongChainNotice />
 
       {status && (
         <div className="mt-3 text-[11px] text-t2 font-mono flex items-center gap-2">
